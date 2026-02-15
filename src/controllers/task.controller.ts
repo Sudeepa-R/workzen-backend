@@ -31,7 +31,6 @@ export const getTasks = async (req: AuthRequest, res: Response) => {
         const userId = getLoggedInUserId(req);
         const cacheKey = `tasks:${userId}`;
 
-        // Check Redis cache if connected
         if (redisClient.isOpen) {
             const cachedTasks = await redisClient.get(cacheKey);
             if (cachedTasks && cachedTasks.length > 0) {
@@ -43,7 +42,6 @@ export const getTasks = async (req: AuthRequest, res: Response) => {
         const userEmail = getLoggedInUserEmail(req);
         const tasks = await Task.find({ owner: userEmail }).sort({ createdAt: -1 });
 
-        // Set cache if connected
         if (redisClient.isOpen) {
             await redisClient.setEx(cacheKey, 3600, JSON.stringify(tasks));
         }
@@ -89,7 +87,6 @@ export const updateTask = async (req: AuthRequest, res: Response) => {
 
         const updatedTask = await Task.findByIdAndUpdate(req.params.id, req.body, { new: true });
 
-        // Invalidate cache if connected
         if (redisClient.isOpen) {
             await redisClient.del(`tasks:${getLoggedInUserId(req)}`);
         }
@@ -113,13 +110,12 @@ export const deleteTask = async (req: AuthRequest, res: Response) => {
 
         await task.deleteOne();
 
-        // Invalidate cache if connected
         if (redisClient.isOpen) {
             await redisClient.del(`tasks:${getLoggedInUserId(req)}`);
         }
 
         res.json({ message: 'Task successfully removed.' });
     } catch (error: any) {
-        res.status(500).json({ message: 'An error occurred while deleting the task. Please try again later.' });
+        res.status(500).json({ message: error.message || 'An error occurred while deleting the task. Please try again later.' });
     }
 };
