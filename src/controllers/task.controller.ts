@@ -51,7 +51,6 @@ export const createTask = async (req: AuthRequest, res: Response) => {
             owner: req.user._id,
         });
 
-        // Invalidate cache if connected
         if (redisClient.isOpen) {
             await redisClient.del(`tasks:${req.user._id}`);
         }
