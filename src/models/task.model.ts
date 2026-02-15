@@ -5,7 +5,7 @@ export interface ITask extends Document {
     description: string;
     status: 'pending' | 'completed';
     dueDate: Date;
-    owner: mongoose.Types.ObjectId;
+    owner: String;
     createdAt: Date;
 }
 
@@ -15,7 +15,7 @@ const taskSchema: Schema = new Schema(
         description: { type: String },
         status: { type: String, enum: ['pending', 'completed'], default: 'pending' },
         dueDate: { type: Date },
-        owner: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+        owner: { type: String, ref: 'User', required: true },
     },
     { timestamps: { createdAt: true, updatedAt: false } }
 );

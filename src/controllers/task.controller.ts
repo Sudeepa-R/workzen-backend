@@ -1,29 +1,47 @@
-import { Request, Response } from 'express';
+import e, { Request, Response } from 'express';
 import Task from '../models/task.model';
 import { redisClient } from '../config/redis';
+import config from '../config/config';
+import { jwtDecode } from 'jwt-decode';
 
 interface AuthRequest extends Request {
     user?: any;
 }
 
-// @desc    Get all tasks for logged in user
-// @route   GET /api/tasks
-// @access  Private
+const getLoggedInUserId = (req: AuthRequest): string => {
+    const token = req.headers.authorization?.split(' ')[1];
+    if (!token) {
+        throw new Error('No token provided');
+    }
+    const decoded: any = jwtDecode(token);
+    return decoded.id;
+}
+
+const getLoggedInUserEmail = (req: AuthRequest): string => {
+    const token = req.headers.authorization?.split(' ')[1];
+    if (!token) {
+        throw new Error('No token provided');
+    }
+    const decoded: any = jwtDecode(token);
+    return decoded.email;
+}
+
 export const getTasks = async (req: AuthRequest, res: Response) => {
     try {
-        const userId = req.user._id.toString();
+        const userId = getLoggedInUserId(req);
         const cacheKey = `tasks:${userId}`;
 
         // Check Redis cache if connected
         if (redisClient.isOpen) {
             const cachedTasks = await redisClient.get(cacheKey);
-            if (cachedTasks) {
+            if (cachedTasks && cachedTasks.length > 0) {
                 console.log('Serving from cache');
                 return res.json(JSON.parse(cachedTasks));
             }
         }
 
-        const tasks = await Task.find({ owner: req.user._id });
+        const userEmail = getLoggedInUserEmail(req);
+        const tasks = await Task.find({ owner: userEmail }).sort({ createdAt: -1 });
 
         // Set cache if connected
         if (redisClient.isOpen) {
@@ -32,87 +50,76 @@ export const getTasks = async (req: AuthRequest, res: Response) => {
 
         res.json(tasks);
     } catch (error: any) {
-        res.status(500).json({ message: error.message });
+        res.status(500).json({ message: error.message || 'An error occurred while fetching tasks. Please try again later.' });
     }
 };
 
-// @desc    Create new task
-// @route   POST /api/tasks
-// @access  Private
 export const createTask = async (req: AuthRequest, res: Response) => {
     try {
-        const { title, description, status, dueDate } = req.body;
+        const { title, description, status, owner, dueDate } = req.body;
 
         const task = await Task.create({
             title,
             description,
             status,
             dueDate,
-            owner: req.user._id,
+            owner,
         });
 
         if (redisClient.isOpen) {
-            await redisClient.del(`tasks:${req.user._id}`);
+            await redisClient.del(`tasks:${getLoggedInUserId(req)}`);
         }
 
-        res.status(201).json(task);
+        res.status(201).json({
+            task,
+            message: 'Task successfully created.',
+        });
     } catch (error: any) {
-        res.status(400).json({ message: error.message });
+        res.status(400).json({ message: error.message || 'An error occurred while creating the task. Please check your input and try again.' });
     }
 };
 
-// @desc    Update task
-// @route   PUT /api/tasks/:id
-// @access  Private
 export const updateTask = async (req: AuthRequest, res: Response) => {
     try {
         const task = await Task.findById(req.params.id);
 
         if (!task) {
-            return res.status(404).json({ message: 'Task not found' });
-        }
-
-        if (task.owner.toString() !== req.user._id.toString()) {
-            return res.status(401).json({ message: 'Not authorized' });
+            return res.status(404).json({ message: 'The task you are trying to update does not exist.' });
         }
 
         const updatedTask = await Task.findByIdAndUpdate(req.params.id, req.body, { new: true });
 
         // Invalidate cache if connected
         if (redisClient.isOpen) {
-            await redisClient.del(`tasks:${req.user._id}`);
+            await redisClient.del(`tasks:${getLoggedInUserId(req)}`);
         }
 
-        res.json(updatedTask);
+        res.json({
+            updatedTask,
+            message: 'Task successfully updated.',
+        });
     } catch (error: any) {
-        res.status(400).json({ message: error.message });
+        res.status(400).json({ message: 'An error occurred while updating the task. Please try again later.' });
     }
 };
 
-// @desc    Delete task
-// @route   DELETE /api/tasks/:id
-// @access  Private
 export const deleteTask = async (req: AuthRequest, res: Response) => {
     try {
         const task = await Task.findById(req.params.id);
 
         if (!task) {
-            return res.status(404).json({ message: 'Task not found' });
-        }
-
-        if (task.owner.toString() !== req.user._id.toString()) {
-            return res.status(401).json({ message: 'Not authorized' });
+            return res.status(404).json({ message: 'The task you are trying to delete does not exist.' });
         }
 
         await task.deleteOne();
 
         // Invalidate cache if connected
         if (redisClient.isOpen) {
-            await redisClient.del(`tasks:${req.user._id}`);
+            await redisClient.del(`tasks:${getLoggedInUserId(req)}`);
         }
 
-        res.json({ message: 'Task removed' });
+        res.json({ message: 'Task successfully removed.' });
     } catch (error: any) {
-        res.status(500).json({ message: error.message });
+        res.status(500).json({ message: 'An error occurred while deleting the task. Please try again later.' });
     }
 };

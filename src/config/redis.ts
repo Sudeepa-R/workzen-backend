@@ -5,6 +5,8 @@ let isRedisErrorLogged = false;
 
 const redisClient = createClient({
     url: config.REDIS_URL,
+    password: config.REDIS_PASSWORD,
+    username: config.REDIS_USERNAME,
     socket: {
         reconnectStrategy: (retries) => {
             if (retries > 5) {

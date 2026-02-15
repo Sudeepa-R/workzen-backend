@@ -17,11 +17,11 @@ export const protect = async (req: AuthRequest, res: Response, next: NextFunctio
             req.user = await User.findById(decoded.id).select('-password');
             next();
         } catch (error) {
-            res.status(401).json({ message: 'Not authorized, token failed' });
+            res.status(401).json({ message: 'Unauthorized access. Please log in to continue.' });
         }
     }
 
     if (!token) {
-        res.status(401).json({ message: 'Not authorized, no token' });
+        res.status(401).json({ message: 'Unauthorized access. Please log in to continue.' });
     }
 };
