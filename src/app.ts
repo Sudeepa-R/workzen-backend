@@ -19,6 +19,11 @@ app.use('/api/auth', authRoutes);
 app.use('/api/tasks', taskRoutes);
 app.use('/api/users', userRoutes);
 
+// Route for root path
+app.get('/', (req, res) => {
+    res.status(200).json({ message: 'Mini Task Tracker API running successfully!' });
+});
+
 // Basic health check
 app.get('/health', (req, res) => {
     res.status(200).json({
