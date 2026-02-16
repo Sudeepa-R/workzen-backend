@@ -8,23 +8,19 @@ import userRoutes from './routes/user.routes';
 
 const app = express();
 
-// Middleware
 app.use(helmet());
 app.use(cors());
 app.use(morgan('dev'));
 app.use(express.json());
 
-// Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/tasks', taskRoutes);
 app.use('/api/users', userRoutes);
 
-// Route for root path
 app.get('/', (req, res) => {
     res.status(200).json({ message: 'Mini Task Tracker API running successfully!' });
 });
 
-// Basic health check
 app.get('/health', (req, res) => {
     res.status(200).json({
         status: 'OK',
