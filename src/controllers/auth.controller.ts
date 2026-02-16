@@ -45,6 +45,6 @@ export const login = async (req: Request, res: Response) => {
             res.status(401).json({ message: 'Invalid email or password. Please check your credentials and try again.' });
         }
     } catch (error: any) {
-        res.status(500).json({ message: 'An unexpected error occurred during login. Please try again later.' });
+        res.status(500).json({ message: error.message || 'An unexpected error occurred during login. Please try again later.' });
     }
 };
